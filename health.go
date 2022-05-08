@@ -13,18 +13,6 @@ import (
 
 var statusMap = sync.Map{}
 
-type ProxyEnd struct {
-	OnDown func(*ProxyEnd)
-}
-
-type HealthManager struct {
-	ProxyEnds []*ProxyEnd
-	AvailableProxyEnds []*ProxyEnd
-	Current *ProxyEnd
-	OnDown func(*ProxyEnd)
-	OnUp func(*ProxyEnd)
-}
-
 func check(config *Config)  {
 	var limit = make(chan BackendC, config.Health.Threads)
 
@@ -37,32 +25,32 @@ func check(config *Config)  {
 	go func() {
 		for {
 			backend := <-limit
-			log.Printf("%s", (backend).Server)
+			log.Printf("%s", backend.Server)
 			go func() {
 				defer func() {
 					time.Sleep(config.Health.HealthInterval)
 					limit <- backend
 				}()
-				checkProxyEnd(backend, config)
+				checkProxyEnd(&backend, config)
 			}()
 		}
 	}()
 }
 
-func checkProxyEnd(backend BackendC, config *Config) {
+func checkProxyEnd(backend *BackendC, config *Config) {
 	start := time.Now()
 	err := with_proxy(backend, &config.Health)
 	if err != nil {
 		log.Printf("%s: %+v", backend.Server, err)
-		statusMap.Delete(&backend)
+		statusMap.Delete(backend)
 	} else {
 		elapsed := time.Since(start)
 		log.Printf("%s health check ok", backend.Server)
-		statusMap.Store(&backend, elapsed)
+		statusMap.Store(backend, elapsed)
 	}
 }
 
-func with_proxy(backend BackendC, health *HealthC) error {
+func with_proxy(backend *BackendC, health *HealthC) error {
 	var proxy Proxy
 	if backend.Type == "http" {
 		proxy = &HttpProxy{
