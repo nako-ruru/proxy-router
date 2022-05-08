@@ -1,0 +1,24 @@
+server:
+  listen:
+    - address: 4974
+    - address: 4975
+      tls:         # not supported yet, todo
+        key-store:
+        key-store-password:
+        key-store-type:
+  verbose: 0
+backends:
+  - server: "localhost:8080"
+    type: http
+  - server: "www.myproxy.com:8080"
+    type: http
+    username:
+    password:
+health:
+  health-interval: 30s
+  health-timeout: 10s
+  health-uri: https://www.google.com
+  health-response-status: 2xx
+  threads: 10   # 0 means unlimited
+  user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36"
+selector: minimum-response-duaration # only minimum-response-duaration is supported, todo for random, round-robin
