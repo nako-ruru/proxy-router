@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/dop251/goja"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,21 +17,49 @@ import (
 var statusMap = sync.Map{}
 
 func check(config *Config)  {
-	var limit = make(chan BackendC, config.Health.Threads)
+	//make HealthTimeout string because tools that generates struct from yaml make it string
+	//I do not want to replace its type with time.Duration everytime
+	_, err := time.ParseDuration(config.Health.HealthTimeout)
+	if err != nil {
+		panic(err)
+	}
+	_, err = time.ParseDuration(config.Health.HealthInterval)
+	if err != nil {
+		panic(err)
+	}
+
+	var limit = make(chan Target, config.Health.Threads)
 
 	go func() {
-		for _, backend := range config.Backends {
-			limit <- backend
+		for _, target := range config.Backends.Targets {
+			limit <- target
 		}
 	}()
+	for _, targetDoc := range config.Backends.TargetsFromDocument {
+		go func() {
+			targets, err := loadFromDocument(targetDoc)
+			if err != nil {
+				log.Printf("%+v", err)
+				return
+			}
+			if len(targets) > 0 {
+				go func() {
+					for _, target := range targets {
+						limit <- target
+					}
+				}()
+			}
+		}()
+	}
 
 	go func() {
 		for {
 			backend := <-limit
-			log.Printf("%s", backend.Server)
+			log.Printf("checking %s", backend.Server)
 			go func() {
 				defer func() {
-					time.Sleep(config.Health.HealthInterval)
+					timeout, _ := time.ParseDuration(config.Health.HealthInterval)
+					time.Sleep(timeout)
 					limit <- backend
 				}()
 				checkProxyEnd(&backend, config)
@@ -37,7 +68,7 @@ func check(config *Config)  {
 	}()
 }
 
-func checkProxyEnd(backend *BackendC, config *Config) {
+func checkProxyEnd(backend *Target, config *Config) {
 	start := time.Now()
 	err := with_proxy(backend, &config.Health)
 	if err != nil {
@@ -50,7 +81,7 @@ func checkProxyEnd(backend *BackendC, config *Config) {
 	}
 }
 
-func with_proxy(backend *BackendC, health *HealthC) error {
+func with_proxy(backend *Target, health *Health) error {
 	var proxy Proxy
 	if backend.Type == "http" {
 		proxy = &HttpProxy{
@@ -64,8 +95,9 @@ func with_proxy(backend *BackendC, health *HealthC) error {
 	if err != nil {
 		return err
 	}
-	client.Timeout = health.HealthTimeout
-	req, err := http.NewRequest("GET", health.HealthURI, nil)
+	timeout, _ := time.ParseDuration(health.HealthTimeout)
+	client.Timeout = timeout
+	req, err := http.NewRequest("GET", health.HealthURL, nil)
 	if err != nil {
 		return err
 	}
@@ -81,6 +113,69 @@ func with_proxy(backend *BackendC, health *HealthC) error {
 		return fmt.Errorf(`http status not match, "%s" expected, actual "%s"`, health.HealthResponseStatus, resp.Status)
 	}
 	return nil
+}
+
+func loadFromDocument(targetDoc TargetsFromDocument) ([]Target, error) {
+	if targetDoc.ExtractType != "script" && targetDoc.ExtractType != "delimiter" {
+		return nil, nil
+	}
+	var bytes []byte
+	if targetDoc.FilePath != "" {
+		var err error
+		bytes, err = ioutil.ReadFile(targetDoc.FilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else if targetDoc.URL != "" {
+		resp, err := http.Get(targetDoc.URL)
+		if err != nil {
+			return nil, err
+		}
+		defer func(reader io.ReadCloser) {
+			_ = reader.Close()
+		}(resp.Body)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, fmt.Errorf(`unexpected status code %d for %s`, resp.StatusCode, targetDoc.URL)
+		}
+		bytes, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf(`either file-path or url should be setL`)
+	}
+	var docContent = strings.TrimSpace(string(bytes))
+	if docContent == "" {
+		var path string
+		if targetDoc.FilePath != "" {
+			path = targetDoc.FilePath
+		} else {
+			path = targetDoc.URL
+		}
+		return nil, fmt.Errorf(`empty document of "%s"`, path)
+	}
+	if targetDoc.ExtractType == "script" {
+		vm := goja.New()
+		vm.SetFieldNameMapper(goja.TagFieldNameMapper("yaml", true))
+		_, err := vm.RunString(targetDoc.ExtractScript)
+		if err != nil {
+			return nil, err
+		}
+		var extract func(string) []Target
+		err = vm.ExportTo(vm.Get(targetDoc.ScriptEntrance), &extract)
+		if err != nil {
+			return nil, err
+		}
+		targets := extract(docContent)
+		return targets, nil
+	} else {
+		elements := strings.Split(docContent, targetDoc.Delimiter)
+		var targets []Target
+		for _, element := range elements {
+			targets = append(targets, Target{Server: element, Type: targetDoc.Type})
+		}
+		return targets, nil
+	}
 }
 
 func responseCodeMath(pattern string, code int) bool {
