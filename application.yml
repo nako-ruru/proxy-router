@@ -7,12 +7,13 @@ server:
       auto-cert: 1
   verbose: 0
 backends:
-  - server: "localhost:8080"
-    type: http
-  - server: "www.myproxy.com:8080"
-    type: http
-    username:
-    password:
+  targets:
+    - server: "localhost:8080"
+      type: http
+    - server: "www.myproxy.com:8080"
+      type: http
+      username:
+      password:
   targets-from-document:
     - file-path: ./sample.txt
       url:
