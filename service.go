@@ -20,10 +20,9 @@ const (
 )
 
 func SetBasicAuth(username, password string, req *http.Request) {
-	if true {
-		return
+	if username != "" {
+		req.Header.Set(ProxyAuthHeader, fmt.Sprintf("Basic %s", basicAuth(username, password)))
 	}
-	req.Header.Set(ProxyAuthHeader, fmt.Sprintf("Basic %s", basicAuth(username, password)))
 }
 
 func basicAuth(username, password string) string {
@@ -49,9 +48,7 @@ func start(config *Config) {
 			return goproxy.RejectConnect, host
 		}
 		connectReqHandler := func(req *http.Request) {
-			if c.Username != "" {
-				SetBasicAuth( c.Username, c.Password, req)
-			}
+			SetBasicAuth( c.Username, c.Password, req)
 		}
 		ctx.ConnectDial = middleProxy.NewConnectDialToProxyWithHandler("http://"+c.Server, connectReqHandler)
 		return goproxy.OkConnect, host

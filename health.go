@@ -62,26 +62,26 @@ func check(config *Config)  {
 					time.Sleep(timeout)
 					limit <- backend
 				}()
-				checkProxyEnd(&backend, config)
+				checkProxyEnd(backend, config.Health)
 			}()
 		}
 	}()
 }
 
-func checkProxyEnd(backend *Target, config *Config) {
+func checkProxyEnd(backend Target, health Health) {
 	start := time.Now()
-	err := with_proxy(backend, &config.Health)
+	err := with_proxy(backend, health)
 	if err != nil {
 		log.Printf("%s: %+v", backend.Server, err)
 		statusMap.Delete(backend)
 	} else {
 		elapsed := time.Since(start)
-		log.Printf("%s health check ok", backend.Server)
+		log.Printf("%s health check ok within %d ms", backend.Server, int64(elapsed / time.Millisecond))
 		statusMap.Store(backend, elapsed)
 	}
 }
 
-func with_proxy(backend *Target, health *Health) error {
+func with_proxy(backend Target, health Health) error {
 	var proxy Proxy
 	if backend.Type == "http" {
 		proxy = &HttpProxy{
