@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"time"
 )
 
 var selector = &MinimumResponseDuration{}
@@ -48,7 +47,7 @@ func start(config *Config) {
 			return goproxy.RejectConnect, host
 		}
 		connectReqHandler := func(req *http.Request) {
-			SetBasicAuth( c.Username, c.Password, req)
+			SetBasicAuth(c.Username, c.Password, req)
 		}
 		ctx.ConnectDial = middleProxy.NewConnectDialToProxyWithHandler("http://"+c.Server, connectReqHandler)
 		return goproxy.OkConnect, host
@@ -57,10 +56,14 @@ func start(config *Config) {
 		listen(proxyEnd, middleProxy)
 	}
 
-	time.Sleep(1 * time.Second)
+	if config.Server.Prof != "" {
+		go func() {
+			log.Println(http.ListenAndServe(formatAddress(config.Server.Prof), nil))
+		}()
+	}
 }
 
-func listen(proxyEnd Listen, middleProxy *goproxy.ProxyHttpServer)  {
+func listen(proxyEnd Listen, middleProxy *goproxy.ProxyHttpServer) {
 	go func() {
 		log.Printf("serving middle proxy server start listening %s", proxyEnd.Address)
 		if parseBool(proxyEnd.AutoCert) {

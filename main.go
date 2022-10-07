@@ -1,18 +1,13 @@
 package main
 
 import (
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"path/filepath"
 	"runtime"
 )
 
-func main()  {
-	filename, err := filepath.Abs("./application.yml")
-	if err != nil {
-		panic(err)
-	}
-	yamlFile, err := ioutil.ReadFile(filename)
+func main() {
+	yamlFile, err := ioutil.ReadFile("./application.yml")
 	if err != nil {
 		panic(err)
 	}
