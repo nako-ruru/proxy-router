@@ -16,7 +16,7 @@ import (
 
 var statusMap = sync.Map{}
 
-func check(config *Config)  {
+func check(config *Config) {
 	//make HealthTimeout string because tools that generates struct from yaml make it string
 	//I do not want to replace its type with time.Duration everytime
 	_, err := time.ParseDuration(config.Health.HealthTimeout)
@@ -72,11 +72,11 @@ func checkProxyEnd(backend Target, health Health) {
 	start := time.Now()
 	err := with_proxy(backend, health)
 	if err != nil {
-		log.Printf("%s: %+v", backend.Server, err)
+		log.Printf("%s%s: %+v%s", "\033[31m", backend.Server, err, "\033[0m")
 		statusMap.Delete(backend)
 	} else {
 		elapsed := time.Since(start)
-		log.Printf("%s health check ok within %d ms", backend.Server, int64(elapsed / time.Millisecond))
+		log.Printf("%s%s health check ok within %d ms%s", "\033[32m", backend.Server, int64(elapsed/time.Millisecond), "\033[0m")
 		statusMap.Store(backend, elapsed)
 	}
 }
