@@ -1,0 +1,1 @@
+go build -buildvcs=false -o proxy-router.exe
