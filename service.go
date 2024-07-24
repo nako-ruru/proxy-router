@@ -4,9 +4,10 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"github.com/xzycn/goproxy"
+	"github.com/elazarl/goproxy"
 	"golang.org/x/crypto/acme/autocert"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -32,26 +33,26 @@ func start(config *Config) {
 	// start middle proxy server
 	middleProxy := goproxy.NewProxyHttpServer()
 	middleProxy.ConnectDial = nil
+	middleProxy.ConnectDialWithReq = func(req *http.Request, network string, addr string) (net.Conn, error) {
+		c := selector.Select()
+		if c == nil {
+			return nil, fmt.Errorf("no Available communication circuit")
+		}
+		connectReqHandler := func(req *http.Request) {
+			SetBasicAuth(c.Username, c.Password, req)
+		}
+		handler := middleProxy.NewConnectDialToProxyWithHandler("http://"+c.Server, connectReqHandler)
+		return handler(network, addr)
+	}
 	middleProxy.Verbose = parseBool(config.Server.Verbose)
 
 	middleProxy.Tr.Proxy = func(req *http.Request) (*url.URL, error) {
 		c := selector.Select()
 		if c == nil {
-			panic("No Available communication circuit!")
+			return nil, fmt.Errorf("no Available communication circuit")
 		}
 		return url.Parse("http://" + c.Server)
 	}
-	middleProxy.OnRequest().HandleConnectFunc(func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
-		c := selector.Select()
-		if c == nil {
-			return goproxy.RejectConnect, host
-		}
-		connectReqHandler := func(req *http.Request) {
-			SetBasicAuth(c.Username, c.Password, req)
-		}
-		ctx.ConnectDial = middleProxy.NewConnectDialToProxyWithHandler("http://"+c.Server, connectReqHandler)
-		return goproxy.OkConnect, host
-	})
 	for _, proxyEnd := range config.Server.Listen {
 		listen(proxyEnd, middleProxy)
 	}

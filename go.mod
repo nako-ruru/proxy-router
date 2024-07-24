@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/dop251/goja v0.0.0-20220501172647-e1eca0b61fa9
-	github.com/xzycn/goproxy v0.0.0-20220507084550-40673fd2b772
+	github.com/elazarl/goproxy v0.0.0-20240719135048-6ca80f564554
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	gopkg.in/yaml.v3 v3.0.1
 )
