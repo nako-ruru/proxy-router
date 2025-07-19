@@ -5,13 +5,19 @@ server:
   verbose: 0
 backends:
   targets:
-    - server: "localhost:8580"
+    - server: "127.0.0.1:8080"
+      type: http
+      params:
+        extra-cost: 150ms
+    - server: "100.70.17.53:8080"
+      type: http
+    - server: "10.147.17.242:8080"
       type: http
 health:
-  health-interval: 30s
-  health-timeout: 10s
-  health-url: https://www.google.com
+  health-interval: 10s
+  health-timeout: 15s
+  health-url: https://maze.toys/mazes/mini/daily/
   health-response-status: 2xx
   threads: 10   # 0 means unlimited
-  user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+  # user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
 selector: minimum-response-duration # only minimum-response-duration is supported, todo for random, round-robin

@@ -18,10 +18,12 @@ type Server struct {
 	Verbose string   `yaml:"verbose"`
 }
 type Target struct {
-	Server   string `yaml:"server"`
-	Type     string `yaml:"type"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Id       string
+	Server   string            `yaml:"server"`
+	Type     string            `yaml:"type"`
+	Username string            `yaml:"username"`
+	Password string            `yaml:"password"`
+	Params   map[string]string `yaml:"params"`
 }
 type TargetsFromDocument struct {
 	FilePath       string `yaml:"file-path"`
@@ -33,7 +35,7 @@ type TargetsFromDocument struct {
 	ExtractScript  string `yaml:"extract-script"`
 }
 type Backends struct {
-	Targets             []Target              `yaml:"targets"`
+	Targets             []*Target             `yaml:"targets"`
 	TargetsFromDocument []TargetsFromDocument `yaml:"targets-from-document"`
 }
 type Health struct {

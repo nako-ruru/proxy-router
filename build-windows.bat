@@ -1,1 +1,1 @@
-go build -buildvcs=false -o proxy-router.exe
+go build -buildvcs=false -gcflags "all=-N -l" -o proxy-router.exe

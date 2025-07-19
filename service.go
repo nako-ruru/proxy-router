@@ -13,7 +13,7 @@ import (
 	"regexp"
 )
 
-var selector = &MinimumResponseDuration{}
+var selector = &MinCost{}
 
 const (
 	ProxyAuthHeader = "Proxy-Authorization"

@@ -1,13 +1,14 @@
 package main
 
 import (
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"runtime"
 )
 
 func main() {
-	yamlFile, err := ioutil.ReadFile("./application.yml")
+	yamlFile, err := os.ReadFile("./application.yml")
 	if err != nil {
 		panic(err)
 	}
@@ -18,6 +19,9 @@ func main() {
 		panic(err)
 	}
 
+	for _, target := range config.Backends.Targets {
+		target.Id = gonanoid.Must()
+	}
 	check(&config)
 	start(&config)
 
